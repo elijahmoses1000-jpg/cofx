@@ -42,11 +42,49 @@ function LoginForm() {
     const [busy, setBusy] = useState('');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
+    const [providers, setProviders] = useState<Record<string, boolean> | null>(null);
 
     useEffect(() => {
         const fromCallback = params.get('error');
         if (fromCallback) setError(fromCallback);
     }, [params]);
+
+    // Ask the project which providers are actually switched on. Clicking a
+    // provider that is off sends the browser to a raw Supabase error page, so
+    // the button must never be offered unless it will work.
+    useEffect(() => {
+        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!base || !key) return;
+        let cancelled = false;
+        fetch(base + '/auth/v1/settings', { headers: { apikey: key } })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (!cancelled && data && data.external) setProviders(data.external as Record<string, boolean>);
+            })
+            .catch(() => {
+                // Leave providers unknown; the click guard below still protects.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    async function providerEnabled(provider: string): Promise<boolean> {
+        if (providers) return Boolean(providers[provider]);
+        const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!base || !key) return false;
+        try {
+            const res = await fetch(base + '/auth/v1/settings', { headers: { apikey: key } });
+            if (!res.ok) return false;
+            const data = await res.json();
+            if (data?.external) setProviders(data.external as Record<string, boolean>);
+            return Boolean(data?.external?.[provider]);
+        } catch {
+            return false;
+        }
+    }
 
     function redirectTarget() {
         return window.location.origin + '/auth/callback?next=' + encodeURIComponent(next);
@@ -67,6 +105,16 @@ function LoginForm() {
         setBusy(provider);
         setError('');
         setNotice('');
+
+        if (!(await providerEnabled(provider))) {
+            setError(
+                (provider === 'google' ? 'Google' : 'Microsoft') +
+                    ' sign in is not switched on for this project yet. An administrator can enable it in Supabase under Authentication, Providers. Meanwhile use your email and password below.'
+            );
+            setBusy('');
+            return;
+        }
+
         try {
             const supabase = browserClient();
             const { error: err } = await supabase.auth.signInWithOAuth({
@@ -149,6 +197,10 @@ function LoginForm() {
     }
 
     const working = busy !== '';
+    // Unknown means the settings lookup has not answered yet; offer the button
+    // and let the click guard decide, so a slow network never removes a route in.
+    const showGoogle = providers === null || Boolean(providers.google);
+    const showMicrosoft = providers === null || Boolean(providers.azure);
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-graphite px-4 py-10">
@@ -176,22 +228,30 @@ function LoginForm() {
                             : 'Choose whichever method is easiest. They all reach the same account.'}
                     </p>
 
-                    <div className="mt-4 space-y-2">
-                        <button onClick={() => oauth('google')} disabled={working} className="btn-ghost w-full">
-                            {busy === 'google' ? <Loader2 size={15} className="animate-spin" /> : <GoogleMark />}
-                            Continue with Google
-                        </button>
-                        <button onClick={() => oauth('azure')} disabled={working} className="btn-ghost w-full">
-                            {busy === 'azure' ? <Loader2 size={15} className="animate-spin" /> : <MicrosoftMark />}
-                            Continue with Microsoft
-                        </button>
-                    </div>
+                    {(showGoogle || showMicrosoft) && (
+                        <>
+                            <div className="mt-4 space-y-2">
+                                {showGoogle && (
+                                    <button onClick={() => oauth('google')} disabled={working} className="btn-ghost w-full">
+                                        {busy === 'google' ? <Loader2 size={15} className="animate-spin" /> : <GoogleMark />}
+                                        Continue with Google
+                                    </button>
+                                )}
+                                {showMicrosoft && (
+                                    <button onClick={() => oauth('azure')} disabled={working} className="btn-ghost w-full">
+                                        {busy === 'azure' ? <Loader2 size={15} className="animate-spin" /> : <MicrosoftMark />}
+                                        Continue with Microsoft
+                                    </button>
+                                )}
+                            </div>
 
-                    <div className="my-4 flex items-center gap-3">
-                        <span className="h-px flex-1 bg-hairline" />
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-mute">or</span>
-                        <span className="h-px flex-1 bg-hairline" />
-                    </div>
+                            <div className="my-4 flex items-center gap-3">
+                                <span className="h-px flex-1 bg-hairline" />
+                                <span className="font-mono text-[10px] uppercase tracking-widest text-mute">or</span>
+                                <span className="h-px flex-1 bg-hairline" />
+                            </div>
+                        </>
+                    )}
 
                     {mode === 'link' ? (
                         <form onSubmit={sendLink} className="space-y-3">

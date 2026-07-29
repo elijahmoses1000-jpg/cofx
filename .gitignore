@@ -14,3 +14,6 @@ next-env.d.ts
 
 # Supabase CLI scratch
 supabase/.temp/
+
+# Bundled Supabase CLI binary, too large for version control
+.tools/
