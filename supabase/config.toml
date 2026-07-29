@@ -1,0 +1,39 @@
+# COFX Supabase project configuration.
+# Pushed with: supabase config push --project-ref <ref>
+# Keeping this in the repository means the auth settings that make sign in work
+# are versioned alongside the code rather than clicked into a dashboard.
+
+project_id = "dpmxxmzaiyqafmeeyxog"
+
+[auth]
+enabled = true
+
+# Where Supabase sends people back to after Google, Microsoft, an emailed sign
+# in link, or an email confirmation. Without these the providers refuse the
+# redirect and sign in fails.
+site_url = "https://cofx.vercel.app"
+additional_redirect_urls = [
+    "https://cofx.vercel.app/auth/callback",
+    "https://cofx.vercel.app/**",
+    "http://localhost:3000/auth/callback",
+    "http://localhost:3000/**",
+]
+
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# Confirmation is switched off so creating an account signs the person straight
+# in. The built in Supabase mail service is rate limited and intended for
+# testing, so requiring confirmation would strand new staff. Turn this back on
+# once a real SMTP provider is configured under Project settings, Authentication.
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "10s"
+otp_length = 6
+otp_expiry = 3600
