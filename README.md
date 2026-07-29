@@ -53,6 +53,8 @@ POST /api/chat, the assistant, used by the public help desk.
 
 Both cron endpoints accept either a Vercel bearer token or the x-cofx-token header, so Vercel cron and n8n can drive the same logic. Schedules for the Vercel path are declared in vercel.json.
 
+Note on schedules. vercel.json runs both jobs once daily because Vercel Hobby accounts allow one cron run per day. The accountability sweep is designed to run hourly, which is what the n8n ticket accountability workflow does. Either raise the Vercel plan or let n8n drive that loop.
+
 6. Repository layout
 
 ```

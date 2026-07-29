@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard, Ticket, Users, BadgeCheck, Package, Trophy, BookOpen, Bot, LogOut, Menu, X,
 } from 'lucide-react';
-import { browserClient } from '@/lib/supabase';
+import { browserClient } from '@/lib/supabase-browser';
 
 const NAV = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },

@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, ArrowLeft } from 'lucide-react';
-import { browserClient } from '@/lib/supabase';
+import { browserClient } from '@/lib/supabase-browser';
 
 function LoginForm() {
     const router = useRouter();

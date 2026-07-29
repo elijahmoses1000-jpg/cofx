@@ -10,13 +10,15 @@ export async function middleware(req: NextRequest) {
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anon) return res;
 
+    type CookieWrite = { name: string; value: string; options?: Record<string, unknown> };
+
     const supabase = createServerClient(url, anon, {
         cookies: {
             getAll() {
                 return req.cookies.getAll();
             },
-            setAll(items) {
-                items.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
+            setAll(items: CookieWrite[]) {
+                items.forEach(({ name, value, options }) => res.cookies.set(name, value, options as never));
             },
         },
     });

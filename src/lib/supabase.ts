@@ -1,4 +1,6 @@
-import { createBrowserClient, createServerClient } from '@supabase/ssr';
+import 'server-only';
+
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
@@ -9,10 +11,7 @@ export function supabaseConfigured(): boolean {
     return Boolean(URL && ANON);
 }
 
-/** Browser client used by interactive components for sign in and session state. */
-export function browserClient() {
-    return createBrowserClient(URL, ANON);
-}
+type CookieWrite = { name: string; value: string; options?: Record<string, unknown> };
 
 /** Request scoped client that reads and writes the auth cookie. */
 export async function serverClient() {
@@ -22,9 +21,9 @@ export async function serverClient() {
             getAll() {
                 return store.getAll();
             },
-            setAll(items) {
+            setAll(items: CookieWrite[]) {
                 try {
-                    items.forEach(({ name, value, options }) => store.set(name, value, options));
+                    items.forEach(({ name, value, options }) => store.set(name, value, options as never));
                 } catch {
                     // Called from a server component, where cookies are read only.
                 }
