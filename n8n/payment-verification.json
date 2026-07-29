@@ -1,0 +1,160 @@
+{
+    "name": "COFX Payment Verification",
+    "nodes": [
+        {
+            "parameters": {
+                "pollTimes": { "item": [{ "mode": "everyMinute" }] },
+                "simple": false,
+                "filters": { "q": "from:(alerts@bank) subject:(credit alert) is:unread" },
+                "options": {}
+            },
+            "id": "gmail-trigger",
+            "name": "Bank alert mailbox",
+            "type": "n8n-nodes-base.gmailTrigger",
+            "typeVersion": 1,
+            "position": [-460, 300],
+            "notes": "Watches the finance mailbox that receives credit alerts from the COFX Mobility head office account. Any IMAP mailbox node works in place of Gmail."
+        },
+        {
+            "parameters": {
+                "jsCode": "// Normalise the mail payload before it reaches COFX.\nconst out = [];\nfor (const item of $input.all()) {\n  const j = item.json;\n  out.push({\n    json: {\n      subject: j.subject || j.Subject || '',\n      body: j.textPlain || j.text || j.snippet || j.html || '',\n      source: 'email',\n      message_id: j.id || j.messageId || null\n    }\n  });\n}\nreturn out;"
+            },
+            "id": "normalise",
+            "name": "Normalise mail payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [-240, 300]
+        },
+        {
+            "parameters": {
+                "jsCode": "// First pass extraction in n8n so the workflow can report on parse quality\n// even before COFX is called. COFX repeats this server side and adds a model\n// fallback, so this node is a fast filter rather than the source of truth.\nconst AMOUNT = /credited\\s+with\\s+(?:NGN|N|₦)?\\s?([\\d,]+(?:\\.\\d{1,2})?)/i;\nconst ANY_AMOUNT = /(?:NGN|₦|N)\\s?([\\d,]+(?:\\.\\d{1,2})?)/i;\nconst REF = /(?:\\bref(?:erence)?\\b|transaction\\s*id|session\\s*id)\\s*[:#-]?\\s*([A-Z0-9][A-Z0-9\\-\\/]{5,})/i;\nconst CODE = /\\bWP[0-9A-F]{6}\\b/i;\nconst out = [];\nfor (const item of $input.all()) {\n  const text = (item.json.subject || '') + '\\n' + (item.json.body || '');\n  const amt = (AMOUNT.exec(text) || ANY_AMOUNT.exec(text) || [])[1] || null;\n  const ref = (REF.exec(text) || [])[1] || null;\n  const code = (CODE.exec(text) || [])[0] || null;\n  out.push({ json: { ...item.json, parsed_amount: amt ? Number(amt.replace(/,/g, '')) : null, parsed_ref: ref, parsed_code: code, is_credit: /credit/i.test(text) } });\n}\nreturn out;"
+            },
+            "id": "extract",
+            "name": "Extract amount, reference and code",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [-20, 300]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": { "caseSensitive": false, "version": 2 },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.is_credit }}",
+                            "rightValue": true,
+                            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+                        },
+                        {
+                            "leftValue": "={{ $json.parsed_amount }}",
+                            "rightValue": 0,
+                            "operator": { "type": "number", "operation": "gt" }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "is-credit",
+            "name": "Is a credit alert with an amount",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [200, 300]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.COFX_BASE_URL }}/api/payments/ingest",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        { "name": "content-type", "value": "application/json" },
+                        { "name": "x-cofx-token", "value": "={{ $env.COFX_WEBHOOK_SECRET }}" }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({ subject: $json.subject, body: $json.body, source: 'n8n-email' }) }}",
+                "options": { "response": { "response": { "neverError": true } } }
+            },
+            "id": "cofx-ingest",
+            "name": "Post to COFX ingest",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [420, 220],
+            "notes": "COFX parses the alert again server side, stores it, scores it against every awaiting payment and returns the outcome: released, needs_review, unmatched or duplicate."
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        { "conditions": { "options": { "version": 2 }, "conditions": [{ "leftValue": "={{ $json.status }}", "rightValue": "released", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "released" },
+                        { "conditions": { "options": { "version": 2 }, "conditions": [{ "leftValue": "={{ $json.status }}", "rightValue": "needs_review", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "needs review" }
+                    ]
+                },
+                "options": { "fallbackOutput": "extra" }
+            },
+            "id": "route-outcome",
+            "name": "Route on match outcome",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [640, 220]
+        },
+        {
+            "parameters": {
+                "select": "channel",
+                "channelId": { "__rl": true, "value": "sales-floor", "mode": "name" },
+                "text": "=Payment confirmed automatically. {{ $json.parsed.amount }} naira matched to {{ $json.match.payment_id }} with a score of {{ $json.match.score }}. Goods released, no finance wait. Reason: {{ $json.match.reason }}",
+                "otherOptions": {}
+            },
+            "id": "notify-released",
+            "name": "Tell the sales floor to release",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.2,
+            "position": [880, 120],
+            "notes": "Swap for WhatsApp, email or SMS. The message tells the counter the goods can go out now."
+        },
+        {
+            "parameters": {
+                "select": "channel",
+                "channelId": { "__rl": true, "value": "finance-exceptions", "mode": "name" },
+                "text": "=A credit alert needs a human decision. Amount {{ $json.parsed.amount }}, score {{ $json.match.score }}, reason: {{ $json.match.reason }}. Open the COFX payments console to confirm or reject.",
+                "otherOptions": {}
+            },
+            "id": "notify-review",
+            "name": "Escalate to finance",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.2,
+            "position": [880, 280]
+        },
+        {
+            "parameters": {
+                "select": "channel",
+                "channelId": { "__rl": true, "value": "finance-exceptions", "mode": "name" },
+                "text": "=Unmatched credit of {{ $json.parsed.amount }} naira received with reference {{ $json.parsed.transaction_ref }}. No expected payment fits. Investigate in the COFX payments console.",
+                "otherOptions": {}
+            },
+            "id": "notify-unmatched",
+            "name": "Report unmatched credit",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.2,
+            "position": [880, 420]
+        }
+    ],
+    "connections": {
+        "Bank alert mailbox": { "main": [[{ "node": "Normalise mail payload", "type": "main", "index": 0 }]] },
+        "Normalise mail payload": { "main": [[{ "node": "Extract amount, reference and code", "type": "main", "index": 0 }]] },
+        "Extract amount, reference and code": { "main": [[{ "node": "Is a credit alert with an amount", "type": "main", "index": 0 }]] },
+        "Is a credit alert with an amount": { "main": [[{ "node": "Post to COFX ingest", "type": "main", "index": 0 }], []] },
+        "Post to COFX ingest": { "main": [[{ "node": "Route on match outcome", "type": "main", "index": 0 }]] },
+        "Route on match outcome": {
+            "main": [
+                [{ "node": "Tell the sales floor to release", "type": "main", "index": 0 }],
+                [{ "node": "Escalate to finance", "type": "main", "index": 0 }],
+                [{ "node": "Report unmatched credit", "type": "main", "index": 0 }]
+            ]
+        }
+    },
+    "settings": { "executionOrder": "v1" },
+    "tags": [{ "name": "COFX" }, { "name": "Finance" }]
+}

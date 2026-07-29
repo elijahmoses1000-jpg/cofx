@@ -1,0 +1,109 @@
+{
+    "name": "COFX Ticket Accountability",
+    "nodes": [
+        {
+            "parameters": { "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] } },
+            "id": "hourly",
+            "name": "Every hour",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [-440, 300]
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "={{ $env.COFX_BASE_URL }}/api/cron/escalate",
+                "sendHeaders": true,
+                "headerParameters": { "parameters": [{ "name": "x-cofx-token", "value": "={{ $env.CRON_SECRET }}" }] },
+                "options": {}
+            },
+            "id": "escalate",
+            "name": "Escalate stalled tickets",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [-220, 300],
+            "notes": "COFX raises the escalation level on any open or in progress ticket past its service level target with no activity for four hours, writes the reason into the ticket trail, and returns the ticket numbers."
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": { "version": 2 },
+                    "conditions": [{ "leftValue": "={{ $json.escalated }}", "rightValue": 0, "operator": { "type": "number", "operation": "gt" } }],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "any",
+            "name": "Anything escalated",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [0, 300]
+        },
+        {
+            "parameters": {
+                "url": "={{ $env.SUPABASE_URL }}/rest/v1/sales_tickets?status=in.(open,wip)&escalation_level=gt.0&select=ticket_no,subject,status,escalation_level,value_estimate,profiles(full_name,email)&order=escalation_level.desc",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+                        { "name": "authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch",
+            "name": "Fetch the stalled tickets",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [220, 220]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Build one reminder per representative rather than one per ticket, so the\n// sales floor gets a single actionable list instead of a stream of alerts.\nconst byRep = new Map();\nfor (const item of $input.all()) {\n  for (const t of (item.json.data || [item.json])) {\n    const rep = (t.profiles && t.profiles.email) || 'unassigned';\n    const name = (t.profiles && t.profiles.full_name) || 'Unassigned queue';\n    if (!byRep.has(rep)) byRep.set(rep, { email: rep, name, tickets: [] });\n    byRep.get(rep).tickets.push(t);\n  }\n}\nreturn [...byRep.values()].map(v => ({ json: {\n  email: v.email,\n  name: v.name,\n  count: v.tickets.length,\n  lines: v.tickets.map(t => t.ticket_no + ' | ' + t.subject + ' | level ' + t.escalation_level).join('\\n')\n}}));"
+            },
+            "id": "group",
+            "name": "Group by representative",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [440, 220]
+        },
+        {
+            "parameters": {
+                "sendTo": "={{ $json.email }}",
+                "subject": "=You have {{ $json.count }} ticket(s) past the service level target",
+                "emailType": "text",
+                "message": "=Hello {{ $json.name }},\n\nThese tickets have had no update inside their target and have been escalated. Open COFX and record what happened, or close them with an outcome.\n\n{{ $json.lines }}\n\nA ticket cannot be closed without an outcome, and a lost deal needs a reason, so management can see where the pipeline is leaking.\n\nCOFX operations",
+                "options": {}
+            },
+            "id": "email-rep",
+            "name": "Email the representative",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [660, 140]
+        },
+        {
+            "parameters": {
+                "select": "channel",
+                "channelId": { "__rl": true, "value": "branch-management", "mode": "name" },
+                "text": "=Accountability sweep: {{ $('Escalate stalled tickets').item.json.escalated }} ticket(s) escalated. Payment matcher released {{ $('Escalate stalled tickets').item.json.payments.released }} and flagged {{ $('Escalate stalled tickets').item.json.payments.flagged }} for review.",
+                "otherOptions": {}
+            },
+            "id": "notify-mgmt",
+            "name": "Summarise for management",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 2.2,
+            "position": [660, 300]
+        }
+    ],
+    "connections": {
+        "Every hour": { "main": [[{ "node": "Escalate stalled tickets", "type": "main", "index": 0 }]] },
+        "Escalate stalled tickets": { "main": [[{ "node": "Anything escalated", "type": "main", "index": 0 }]] },
+        "Anything escalated": { "main": [[{ "node": "Fetch the stalled tickets", "type": "main", "index": 0 }], []] },
+        "Fetch the stalled tickets": { "main": [[{ "node": "Group by representative", "type": "main", "index": 0 }]] },
+        "Group by representative": {
+            "main": [[{ "node": "Email the representative", "type": "main", "index": 0 }, { "node": "Summarise for management", "type": "main", "index": 0 }]]
+        }
+    },
+    "settings": { "executionOrder": "v1" },
+    "tags": [{ "name": "COFX" }, { "name": "Sales" }]
+}

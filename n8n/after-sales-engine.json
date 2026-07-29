@@ -1,0 +1,150 @@
+{
+    "name": "COFX After Sales Engine",
+    "nodes": [
+        {
+            "parameters": { "rule": { "interval": [{ "triggerAtHour": 7, "triggerAtMinute": 20 }] } },
+            "id": "daily",
+            "name": "Every morning at 7.20",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [-440, 300],
+            "notes": "Runs before the branch opens so the day starts with the reminders already out."
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "={{ $env.COFX_BASE_URL }}/api/cron/after-sales",
+                "sendHeaders": true,
+                "headerParameters": { "parameters": [{ "name": "x-cofx-token", "value": "={{ $env.CRON_SECRET }}" }] },
+                "options": {}
+            },
+            "id": "queue",
+            "name": "Ask COFX to queue engagements",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [-220, 300],
+            "notes": "COFX evaluates birthdays today, batteries near the end of warranty life, services due inside fourteen days, feedback due two days after a purchase, and customers quiet for six months. Duplicate suppression is handled by a unique key per customer per cycle."
+        },
+        {
+            "parameters": {
+                "url": "={{ $env.SUPABASE_URL }}/rest/v1/engagements?status=eq.sent&select=id,type,subject,body,channel,customers(full_name,email,phone,consent_marketing)&order=sent_at.desc&limit=200",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+                        { "name": "authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "fetch",
+            "name": "Fetch the messages to deliver",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [0, 300]
+        },
+        {
+            "parameters": { "fieldToSplitOut": "data", "options": {} },
+            "id": "split",
+            "name": "One item per customer",
+            "type": "n8n-nodes-base.splitOut",
+            "typeVersion": 1,
+            "position": [220, 300]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": { "version": 2 },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.customers.consent_marketing }}",
+                            "rightValue": true,
+                            "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "consent",
+            "name": "Marketing consent given",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [440, 300],
+            "notes": "Consent is checked twice: once when COFX queues the message and again here before anything leaves the building."
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        { "conditions": { "options": { "version": 2 }, "conditions": [{ "leftValue": "={{ $json.channel }}", "rightValue": "email", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "email" },
+                        { "conditions": { "options": { "version": 2 }, "conditions": [{ "leftValue": "={{ $json.channel }}", "rightValue": "whatsapp", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and" }, "renameOutput": true, "outputKey": "whatsapp" }
+                    ]
+                },
+                "options": { "fallbackOutput": "extra" }
+            },
+            "id": "channel",
+            "name": "Route by channel",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3,
+            "position": [660, 300]
+        },
+        {
+            "parameters": {
+                "sendTo": "={{ $json.customers.email }}",
+                "subject": "={{ $json.subject }}",
+                "emailType": "text",
+                "message": "={{ $json.body }}\n\nWannerpart by COFX\nOshodi Apapa Expressway service lane, Lagos\nReply to this message or use the assistant to book a slot.",
+                "options": {}
+            },
+            "id": "send-email",
+            "name": "Send the email",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [900, 200]
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "requestOptions": {}
+            },
+            "id": "send-whatsapp",
+            "name": "Send the WhatsApp message",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1,
+            "position": [900, 340],
+            "notes": "Uses the WhatsApp Business number. Body comes from the same engagement row so wording stays consistent across channels."
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "={{ $env.COFX_BASE_URL }}/api/cron/escalate",
+                "sendHeaders": true,
+                "headerParameters": { "parameters": [{ "name": "x-cofx-token", "value": "={{ $env.CRON_SECRET }}" }] },
+                "options": {}
+            },
+            "id": "sweep",
+            "name": "Run the accountability sweep",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [900, 460],
+            "notes": "Same run also escalates stale tickets and retries payment matching, so one morning job covers retention and accountability."
+        }
+    ],
+    "connections": {
+        "Every morning at 7.20": { "main": [[{ "node": "Ask COFX to queue engagements", "type": "main", "index": 0 }]] },
+        "Ask COFX to queue engagements": { "main": [[{ "node": "Fetch the messages to deliver", "type": "main", "index": 0 }]] },
+        "Fetch the messages to deliver": { "main": [[{ "node": "One item per customer", "type": "main", "index": 0 }]] },
+        "One item per customer": { "main": [[{ "node": "Marketing consent given", "type": "main", "index": 0 }]] },
+        "Marketing consent given": { "main": [[{ "node": "Route by channel", "type": "main", "index": 0 }], []] },
+        "Route by channel": {
+            "main": [
+                [{ "node": "Send the email", "type": "main", "index": 0 }],
+                [{ "node": "Send the WhatsApp message", "type": "main", "index": 0 }],
+                [{ "node": "Run the accountability sweep", "type": "main", "index": 0 }]
+            ]
+        }
+    },
+    "settings": { "executionOrder": "v1" },
+    "tags": [{ "name": "COFX" }, { "name": "After sales" }]
+}

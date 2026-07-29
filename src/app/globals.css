@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-shell font-sans text-graphite antialiased;
+    }
+    ::selection {
+        background: #f2751a;
+        color: #ffffff;
+    }
+    :focus-visible {
+        outline: 2px solid #f2751a;
+        outline-offset: 2px;
+    }
+}
+
+/* The fitment stripe: a machined edge used to mark primary surfaces. */
+.stripe {
+    background-image: repeating-linear-gradient(
+        90deg,
+        #f2751a 0,
+        #f2751a 14px,
+        #101418 14px,
+        #101418 22px
+    );
+}
+
+.card {
+    @apply rounded-lg border border-hairline bg-panel;
+}
+
+.pill {
+    @apply inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide;
+}
+
+.field {
+    @apply w-full rounded border border-hairline bg-shell/60 px-3 py-2 text-sm text-graphite outline-none transition-colors focus:border-torque focus:bg-panel;
+}
+
+.btn {
+    @apply inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50;
+}
+.btn-primary {
+    @apply btn bg-torque text-white hover:bg-torqueDark;
+}
+.btn-dark {
+    @apply btn bg-graphite text-white hover:bg-slateInk;
+}
+.btn-ghost {
+    @apply btn border border-hairline bg-panel text-graphite hover:border-torque hover:text-torqueDark;
+}
+
+::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+}
+::-webkit-scrollbar-thumb {
+    background: #c8cfd7;
+    border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
