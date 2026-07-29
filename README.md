@@ -16,7 +16,13 @@ Payment verification. Bank credit alerts are parsed and scored against expected 
 
 CRM and after sales. One customer record carries vehicles, purchases, loyalty tier and points. Birthday greetings, battery checks near end of warranty, service reminders, post purchase feedback and six month win backs queue themselves, and the customer of the year standing is tracked continuously.
 
-Playbooks. Twenty five knowledge work workflows curated from the COFX plugin library and pointed at live branch data.
+Quotations and orders. A quotation builder on the ticket turns an enquiry into a priced order and issues the payment reference that makes automatic release possible.
+
+Appointments and reports. A workshop diary showing booked slots alongside the vehicles falling due for service, and a reports page computing revenue and margin by category, best selling lines, where enquiries come from, why deals are lost and how much cash is trapped in stock.
+
+Open architecture. COFX runs its own Model Context Protocol server exposing fifteen tools over live branch data, and connects to any external MCP server, routing calls through with a full audit trail. See docs/06-integrations.md.
+
+Playbooks. Knowledge work workflows curated from the COFX plugin library and pointed at live branch data.
 
 Staff sign in. Four routes into the same account: Google, Microsoft, a one time emailed sign in link that needs no password, and email with password including create an account. Staff profiles are created automatically on first sign in whichever route was used, and the first person to sign in becomes the administrator.
 
@@ -31,6 +37,7 @@ docs/02-n8n-workflows.md, node by node configuration for all three workflows.
 docs/03-database-and-ticketing.md, the schema and the rules the database enforces.
 docs/04-ai-agent.md, the agent design and its production system prompt.
 docs/05-authentication.md, the four staff sign in methods and how to switch Google and Microsoft on.
+docs/06-integrations.md, the COFX MCP server, its fifteen tools, how to connect external MCP servers, and the webhook surface.
 
 4. Connecting Supabase and going live
 

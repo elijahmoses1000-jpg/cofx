@@ -25,7 +25,7 @@ export default async function Reports() {
     const [{ data: parts }, { data: orderItems }, { data: orders }, { data: tickets }, { data: customers }, { data: payments }] =
         await Promise.all([
             db.from('parts').select('id, sku, name, category, unit_price, cost_price, stock_qty, reorder_level').eq('active', true),
-            db.from('order_items').select('part_id, qty, line_total, unit_price'),
+            db.from('order_items').select('part_id, qty, line_total, unit_price, order_id'),
             db.from('orders').select('id, status, total, created_at'),
             db.from('sales_tickets').select('status, outcome, lost_reason, intent, channel, value_estimate'),
             db.from('customers').select('customer_type, loyalty_tier, lifetime_value, source'),
@@ -34,9 +34,14 @@ export default async function Reports() {
 
     const partById = new Map((parts || []).map((p) => [p.id, p]));
 
-    // Revenue and margin per category, from actual order lines
+    // Only lines on orders that were actually paid count as revenue, so the
+    // category figures reconcile with the headline number.
+    const soldOrderIds = new Set((orders || []).filter((o) => ['paid', 'released'].includes(o.status)).map((o) => o.id));
+    const soldLines = (orderItems || []).filter((li) => soldOrderIds.has(li.order_id as string));
+
+    // Revenue and margin per category, from actual sold order lines
     const catRevenue = new Map<string, { revenue: number; cost: number; units: number }>();
-    (orderItems || []).forEach((li) => {
+    soldLines.forEach((li) => {
         const p = partById.get(li.part_id as string);
         if (!p) return;
         const row = catRevenue.get(p.category) || { revenue: 0, cost: 0, units: 0 };
@@ -50,7 +55,7 @@ export default async function Reports() {
 
     // Best selling individual lines
     const partUnits = new Map<string, number>();
-    (orderItems || []).forEach((li) => {
+    soldLines.forEach((li) => {
         partUnits.set(li.part_id as string, (partUnits.get(li.part_id as string) || 0) + Number(li.qty));
     });
     const topParts = [...partUnits.entries()]
@@ -111,6 +116,7 @@ export default async function Reports() {
             <div className="grid gap-6 lg:grid-cols-2">
                 <section className="card p-5">
                     <h2 className="font-display text-lg font-bold">Revenue by category</h2>
+                    <p className="mt-1 text-[12px] text-mute">Paid and released orders only, so these reconcile with the headline figure.</p>
                     {categories.length ? (
                         <div className="mt-2">
                             {categories.map(([cat, v]) => (
