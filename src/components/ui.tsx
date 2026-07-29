@@ -53,15 +53,29 @@ export function TableShell({ head, children }: { head: string[]; children: React
 
 export function SetupNotice() {
     return (
-        <div className="card border-caution/40 bg-caution/5 p-5">
-            <div className="font-display text-lg font-bold text-graphite">Database not connected yet</div>
-            <p className="mt-1 text-sm text-steel">
-                Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY in the project
-                environment, then run the database setup script to create the schema and demonstration data.
-            </p>
-            <Link href="/" className="btn-ghost mt-3">
-                Back to overview
-            </Link>
+        <div className="card overflow-hidden">
+            <div className="stripe h-1 w-full" />
+            <div className="p-6">
+                <div className="font-mono text-[11px] uppercase tracking-[0.28em] text-torque">Setup required</div>
+                <h1 className="mt-1 font-display text-2xl font-extrabold text-graphite">Connect the Supabase project</h1>
+                <p className="mt-2 text-sm leading-relaxed text-steel">
+                    The application is deployed and running. The console needs a database before it can show tickets,
+                    customers and payments.
+                </p>
+                <ol className="mt-4 space-y-2 text-[13.5px] text-graphite">
+                    <li>1. Create a project at supabase.com, then copy .env.example to .env.local and fill in the project URL, the anon key, the service role key and the database connection string.</li>
+                    <li>2. Run node scripts/connect.mjs from the repository. It applies the schema, loads the demonstration data, creates the staff accounts, pushes the same variables into Vercel and redeploys.</li>
+                    <li>3. Return here and sign in with one of the accounts the script prints.</li>
+                </ol>
+                <div className="mt-5 flex flex-wrap gap-2">
+                    <Link href="/" className="btn-ghost">
+                        Back to overview
+                    </Link>
+                    <Link href="/assistant" className="btn-primary">
+                        Try the assistant
+                    </Link>
+                </div>
+            </div>
         </div>
     );
 }

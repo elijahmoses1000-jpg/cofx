@@ -10,6 +10,20 @@ export async function POST(req: NextRequest) {
         if (!session_id || !message || !message.trim()) {
             return NextResponse.json({ error: 'session_id and message are required' }, { status: 400 });
         }
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            return NextResponse.json(
+                {
+                    reply:
+                        'The assistant is deployed but its database is not connected yet, so I cannot look up parts or keep your details.\n\nWhoever is setting this up needs to create a Supabase project and run the connector script described in the repository README. Once that is done I can quote real parts from the fitment matrix, book a workshop slot and raise a ticket for a representative to follow up.',
+                    intent: 'general',
+                    ticket_no: null,
+                    parts: [],
+                    captured_contact: false,
+                    handoff: false,
+                },
+                { status: 200 }
+            );
+        }
         const db = adminClient();
         const result = await respond(db, session_id, message.trim());
         return NextResponse.json(result);

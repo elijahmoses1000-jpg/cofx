@@ -1,10 +1,21 @@
 import { redirect } from 'next/navigation';
-import { serverClient } from '@/lib/supabase';
+import { serverClient, supabaseConfigured } from '@/lib/supabase';
 import Shell from '@/components/Shell';
+import { SetupNotice } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
+    if (!supabaseConfigured()) {
+        return (
+            <div className="min-h-screen bg-shell px-4 py-16">
+                <div className="mx-auto max-w-xl">
+                    <SetupNotice />
+                </div>
+            </div>
+        );
+    }
+
     const supabase = await serverClient();
     const {
         data: { user },
