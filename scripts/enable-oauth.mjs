@@ -135,9 +135,12 @@ if (!cli) {
 }
 
 console.log('Pushing configuration to Supabase');
+// The repository path may contain spaces, so the bundled binary is invoked
+// directly rather than through a shell that would split it.
+const useShell = cli === 'supabase';
 const res = spawnSync(cli, ['config', 'push', '--project-ref', projectRef, '--yes'], {
     stdio: 'inherit',
-    shell: true,
+    shell: useShell,
     cwd: root,
     env: { ...process.env, ...env },
 });
