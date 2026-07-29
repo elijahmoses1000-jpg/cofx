@@ -29,17 +29,29 @@ docs/02-n8n-workflows.md, node by node configuration for all three workflows.
 docs/03-database-and-ticketing.md, the schema and the rules the database enforces.
 docs/04-ai-agent.md, the agent design and its production system prompt.
 
-4. Running it
+4. Connecting Supabase and going live
 
-Create a Supabase project, then copy .env.example to .env.local and fill in the four values from the Supabase dashboard.
+Create a Supabase project at supabase.com, then copy .env.example to .env.local and fill in four values from the project dashboard.
+
+NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY come from Project settings, API.
+SUPABASE_SERVICE_ROLE_KEY comes from the same page, under service role. Keep it secret.
+DATABASE_URL comes from Project settings, Database, Connection string, URI. Substitute your database password.
+
+Then run one command:
 
 ```bash
 npm install
+node scripts/connect.mjs
+```
+
+The connector applies both migrations, loads the demonstration catalogue and customers, creates the staff sign in accounts, distributes the demonstration tickets across the sales team, pushes the same variables into the Vercel project, and ships a production deployment. It prints the staff accounts and their password when it finishes. Nothing is sent anywhere except Supabase and Vercel.
+
+To work locally instead:
+
+```bash
 npm run db:setup
 npm run dev
 ```
-
-db:setup applies both migrations, loads the demonstration catalogue and customers, creates the staff sign in accounts and distributes the demonstration tickets across the sales team. It prints the accounts and password when it finishes.
 
 5. Integration surface
 
