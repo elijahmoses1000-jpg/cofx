@@ -334,6 +334,13 @@ function LoginForm() {
                         </div>
                     )}
 
+                    {providers !== null && !providers.google && !providers.azure && (
+                        <p className="mt-3 text-center text-[11.5px] leading-relaxed text-mute">
+                            Google and Microsoft sign in are not switched on for this project yet. An administrator can
+                            enable them by following the authentication guide in the repository.
+                        </p>
+                    )}
+
                     <div className="mt-4 border-t border-hairline pt-3 text-center text-[12.5px] text-steel">
                         {mode === 'signup' ? (
                             <>
