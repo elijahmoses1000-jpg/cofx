@@ -104,6 +104,7 @@ async function main() {
             console.log('skipped (needs owner rights on the auth schema): ' + err.message.split('\n')[0]);
             console.log('  Sign in still works; profiles are created by the application on first sign in.');
         }
+        await runSql(client, 'migrations/0004_integrations.sql');
         await runSql(client, 'seed.sql');
 
         console.log('creating staff sign in accounts');

@@ -5,6 +5,7 @@ import { serverClient } from '@/lib/supabase';
 import { naira, dateTime, sinceNow } from '@/lib/format';
 import { StatusPill } from '@/components/ui';
 import TicketActions from '@/components/TicketActions';
+import QuoteBuilder from '@/components/QuoteBuilder';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +20,11 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
         .maybeSingle();
     if (!ticket) notFound();
 
-    const [{ data: events }, { data: staff }, { data: orders }] = await Promise.all([
+    const [{ data: events }, { data: staff }, { data: orders }, { data: parts }] = await Promise.all([
         db.from('ticket_events').select('*').eq('ticket_id', id).order('created_at', { ascending: false }).limit(60),
         db.from('profiles').select('id, full_name, role').eq('active', true).order('full_name'),
         db.from('orders').select('id, order_no, status, total, payment_reference').eq('ticket_id', id),
+        db.from('parts').select('id, sku, name, brand, category, unit_price, stock_qty').eq('active', true).order('name'),
     ]);
 
     const customer = ticket.customers as unknown as {
@@ -63,6 +65,19 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
                         <h2 className="font-display text-sm font-bold uppercase tracking-wide text-steel">Enquiry</h2>
                         <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed">{ticket.description || 'No description recorded.'}</p>
                     </section>
+
+                    <QuoteBuilder
+                        ticketId={ticket.id}
+                        parts={(parts || []).map((p) => ({
+                            id: p.id,
+                            sku: p.sku,
+                            name: p.name,
+                            brand: p.brand,
+                            category: p.category,
+                            unit_price: Number(p.unit_price),
+                            stock_qty: p.stock_qty,
+                        }))}
+                    />
 
                     <TicketActions
                         ticketId={ticket.id}

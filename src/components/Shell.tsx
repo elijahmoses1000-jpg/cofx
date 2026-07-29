@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-    LayoutDashboard, Ticket, Users, BadgeCheck, Package, Trophy, BookOpen, Bot, LogOut, Menu, X,
+    LayoutDashboard, Ticket, Users, BadgeCheck, Package, CalendarClock, Trophy,
+    BarChart3, BookOpen, Network, Bot, LogOut, Menu, X,
 } from 'lucide-react';
 import { browserClient } from '@/lib/supabase-browser';
 
@@ -14,8 +15,11 @@ const NAV = [
     { href: '/customers', label: 'Customers', icon: Users },
     { href: '/payments', label: 'Payments', icon: BadgeCheck },
     { href: '/parts', label: 'Parts and stock', icon: Package },
+    { href: '/appointments', label: 'Appointments', icon: CalendarClock },
     { href: '/loyalty', label: 'Loyalty', icon: Trophy },
+    { href: '/reports', label: 'Reports', icon: BarChart3 },
     { href: '/playbooks', label: 'Playbooks', icon: BookOpen },
+    { href: '/integrations', label: 'Integrations', icon: Network },
 ];
 
 export default function Shell({ children, who }: { children: React.ReactNode; who: string }) {
