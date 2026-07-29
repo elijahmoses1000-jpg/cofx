@@ -104,3 +104,13 @@ if (!args.includes('--skip-vercel')) {
 console.log('');
 console.log('COFX is connected. Open the deployment URL printed above.');
 console.log('Sign in with the staff accounts printed by the database step, and try the assistant at /assistant.');
+console.log('');
+console.log('One manual step remains for sign in, in the Supabase dashboard:');
+console.log('  Authentication, URL Configuration');
+console.log('    Site URL:                https://cofx.vercel.app');
+console.log('    Additional redirect URLs: https://cofx.vercel.app/auth/callback');
+console.log('                              https://cofx.vercel.app/**');
+console.log('                              http://localhost:3000/auth/callback');
+console.log('');
+console.log('Emailed sign in links and passwords work as soon as that is saved.');
+console.log('For the Google and Microsoft buttons, follow docs/05-authentication.md.');

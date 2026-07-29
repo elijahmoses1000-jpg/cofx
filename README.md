@@ -18,6 +18,8 @@ CRM and after sales. One customer record carries vehicles, purchases, loyalty ti
 
 Playbooks. Twenty five knowledge work workflows curated from the COFX plugin library and pointed at live branch data.
 
+Staff sign in. Four routes into the same account: Google, Microsoft, a one time emailed sign in link that needs no password, and email with password including create an account. Staff profiles are created automatically on first sign in whichever route was used, and the first person to sign in becomes the administrator.
+
 2. Stack
 
 Next.js 15 with the App Router on Vercel, Supabase for Postgres, authentication, row level security and realtime, n8n for anything that reaches outside the building, and an optional language model for phrasing. Every intelligent path has a deterministic fallback, so the platform works end to end even with no model key configured.
@@ -28,6 +30,7 @@ docs/01-architecture.md, the stack, the reasoning and the end to end flow diagra
 docs/02-n8n-workflows.md, node by node configuration for all three workflows.
 docs/03-database-and-ticketing.md, the schema and the rules the database enforces.
 docs/04-ai-agent.md, the agent design and its production system prompt.
+docs/05-authentication.md, the four staff sign in methods and how to switch Google and Microsoft on.
 
 4. Connecting Supabase and going live
 
