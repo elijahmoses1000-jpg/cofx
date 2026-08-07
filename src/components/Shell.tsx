@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     LayoutDashboard, Ticket, Users, BadgeCheck, Package, CalendarClock, Trophy,
-    BarChart3, BookOpen, Network, Bot, LogOut, Menu, X,
+    BarChart3, BookOpen, Network, Bot, LogOut, Menu, X, Wrench,
 } from 'lucide-react';
 import { browserClient } from '@/lib/supabase-browser';
 
@@ -16,6 +16,7 @@ const NAV = [
     { href: '/payments', label: 'Payments', icon: BadgeCheck },
     { href: '/parts', label: 'Parts and stock', icon: Package },
     { href: '/appointments', label: 'Appointments', icon: CalendarClock },
+    { href: '/jobs', label: 'Job cards', icon: Wrench },
     { href: '/loyalty', label: 'Loyalty', icon: Trophy },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
     { href: '/playbooks', label: 'Playbooks', icon: BookOpen },
