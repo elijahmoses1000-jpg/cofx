@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 
 const PROTECTED = [
     '/dashboard', '/tickets', '/customers', '/payments', '/parts',
-    '/appointments', '/loyalty', '/reports', '/playbooks', '/integrations',
+    '/appointments', '/jobs', '/loyalty', '/reports', '/playbooks', '/integrations',
 ];
 
 export async function middleware(req: NextRequest) {
